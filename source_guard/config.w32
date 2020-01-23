@@ -1,0 +1,13 @@
+// $Id$
+// vim:ft=javascript
+
+// If your extension references something external, use ARG_WITH
+// ARG_WITH("source_guard", "for source_guard support", "no");
+
+// Otherwise, use ARG_ENABLE
+ARG_ENABLE("source_guard", "enable source_guard support", "no");
+
+if (PHP_SOURCE_GUARD != "no") {
+	EXTENSION("source_guard", "source_guard.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+}
+
