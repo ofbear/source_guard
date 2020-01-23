@@ -58,6 +58,42 @@ ZEND_END_MODULE_GLOBALS(source_guard)
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
+#define PATH_SIZE	(128)
+
+static const int PL_ENCRYPT_BLOCK_SIZE				= 16;
+static const unsigned char PL_INITIAL_VECTOR[]		= "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";	// change ok
+static const unsigned char PL_DEFAULT_CRYPTKEY[]	= "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";	// change ok
+static const unsigned char PL_TOOL_NAME[]			= "<?php /* SOURCE_GUARD */ ?>";
+
+enum {
+    ERR_NOTHING = 0,
+    ERR_NOT_ENCRYPT,
+    ERR_NOT_SOURCE_GUARD,
+    ERR_FAIL_EVP_INIT,
+    ERR_FAIL_EVP_UPDATE,
+    ERR_FAIL_EVP_FINAL,
+};
+
+typedef struct {
+	char *mode;
+	char *filename;
+
+	FILE *fp_r;
+	FILE *fp_w;
+
+	char *data_raw;
+	char *data_enc;
+
+	int len_raw;
+	int len_enc;
+
+} SourceCryptBuffer;
+
+void source_init();
+void source_free();
+int source_decrypt_openssl(const unsigned char* data_enc, const int len_enc, char* data_raw, int *len_raw);
+int source_decrypt();
+
 #endif	/* PHP_SOURCE_GUARD_H */
 
 
