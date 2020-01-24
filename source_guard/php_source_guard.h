@@ -66,12 +66,13 @@ static const unsigned char PL_DEFAULT_CRYPTKEY[]	= "ABCDEFGHIJKLMNOPQRSTUVWXYZ01
 static const unsigned char PL_TOOL_NAME[]			= "<?php /* SOURCE_GUARD */ ?>";
 
 enum {
-    ERR_NOTHING = 0,
-    ERR_NOT_ENCRYPT,
-    ERR_NOT_SOURCE_GUARD,
-    ERR_FAIL_EVP_INIT,
-    ERR_FAIL_EVP_UPDATE,
-    ERR_FAIL_EVP_FINAL,
+  ERR_NOTHING = 0,
+  ERR_NOT_ENCRYPT,
+  ERR_NOT_SOURCE_GUARD,
+  EVP_FAIL_EVP_NEW,
+  ERR_FAIL_EVP_INIT,
+  ERR_FAIL_EVP_UPDATE,
+  ERR_FAIL_EVP_FINAL,
 };
 
 typedef struct {
@@ -90,7 +91,6 @@ typedef struct {
 } SourceCryptBuffer;
 
 void source_init();
-void source_free();
 int source_decrypt_openssl(const unsigned char* data_enc, const int len_enc, char* data_raw, int *len_raw);
 int source_decrypt();
 

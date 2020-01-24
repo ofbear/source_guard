@@ -42,76 +42,53 @@ static int le_source_guard;
 // init
 void source_init()
 {
-	source_free();
-
-	pl_buffer.mode = NULL;
-	pl_buffer.filename = NULL;
-
-	pl_buffer.fp_r = NULL;
-	pl_buffer.fp_w = NULL;
-
-	pl_buffer.data_raw = NULL;
-	pl_buffer.data_enc = NULL;
-
-	pl_buffer.len_raw = 0;
-	pl_buffer.len_enc = 0;
-}
-
-// free memory
-void source_free()
-{
-	if (pl_buffer.fp_r != NULL)
-	{
+	if (pl_buffer.fp_r != 0) {
 		fclose(pl_buffer.fp_r);
 	}
-	if (pl_buffer.data_raw != NULL)
-	{
+	if (pl_buffer.data_raw != 0) {
 		efree(pl_buffer.data_raw);
 	}
-	if (pl_buffer.data_enc != NULL)
-	{
+	if (pl_buffer.data_enc != 0) {
 		efree(pl_buffer.data_enc);
 	}
+
+	memset(&pl_buffer, 0x00, sizeof(SourceCryptBuffer));
 }
 
 // decrypt wrapper
-int source_decrypt_openssl(const unsigned char *data_enc, const int len_enc, char *data_raw, int *len_raw)
+int source_decrypt_openssl(const unsigned char* data_enc, const int len_enc, char* data_raw, int *len_raw)
 {
 	EVP_CIPHER_CTX *ctx;
 	int len_raw_0 = 0;
 	int len_raw_1 = 0;
 
 	// new
-	if (!(ctx = EVP_CIPHER_CTX_new()))
-	{
+	if (!(ctx = EVP_CIPHER_CTX_new())) {
 		EVP_CIPHER_CTX_free(ctx);
-		return ERR_FAIL_EVP_INIT;
+		return EVP_FAIL_EVP_NEW;
 	}
 
 	// init
 	// if you want to change encrypt method, you change "EVP_aes_256_cbc"
 	// https://www.openssl.org/docs/man1.1.0/crypto/EVP_aes_256_cbc.html
-	if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, PL_DEFAULT_CRYPTKEY, PL_INITIAL_VECTOR))
-	{
+	if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, PL_DEFAULT_CRYPTKEY, PL_INITIAL_VECTOR)) {
 		EVP_CIPHER_CTX_free(ctx);
 		return ERR_FAIL_EVP_INIT;
 	}
 
 	// Execute
-	if (!EVP_DecryptUpdate(ctx, (unsigned char *)data_raw, &len_raw_0, data_enc, len_enc))
-	{
+	if (!EVP_DecryptUpdate(ctx, (unsigned char *)data_raw, &len_raw_0, data_enc, len_enc)) {
 		EVP_CIPHER_CTX_free(ctx);
 		return ERR_FAIL_EVP_UPDATE;
 	}
 
 	// padding
-	if (!EVP_DecryptFinal_ex(ctx, (unsigned char *)(data_raw + len_raw_0), &len_raw_1))
-	{
+	if (!EVP_DecryptFinal_ex(ctx, (unsigned char *)(data_raw + len_raw_0), &len_raw_1)) {
 		EVP_CIPHER_CTX_free(ctx);
-		return ERR_FAIL_EVP_UPDATE;
+		return ERR_FAIL_EVP_FINAL;
 	}
 
-	*len_raw = len_raw_0 + len_raw_1;
+	*len_raw = len_raw_0 + len_raw_1 - 1;
 	memset(data_raw + *len_raw, 0x00, len_enc - *len_raw);
 
 	EVP_CIPHER_CTX_free(ctx);
@@ -122,7 +99,7 @@ int source_decrypt_openssl(const unsigned char *data_enc, const int len_enc, cha
 int source_decrypt()
 {
 	struct stat stat_buf;
-	int dec_code = ERR_NOTHING;
+	int ret = ERR_NOTHING;
 
 	// get file data
 	fstat(fileno(pl_buffer.fp_r), &stat_buf);
@@ -131,8 +108,7 @@ int source_decrypt()
 	fread(pl_buffer.data_enc, pl_buffer.len_enc, 1, pl_buffer.fp_r);
 
 	// check php code
-	if (strstr((const char *)pl_buffer.data_enc, "<?php") != NULL)
-	{
+	if (strstr((const char *)pl_buffer.data_enc, "<?php") != NULL) {
 		return ERR_NOT_ENCRYPT;
 	}
 
@@ -141,14 +117,12 @@ int source_decrypt()
 	pl_buffer.data_raw = ecalloc(1, sizeof(char) * pl_buffer.len_raw);
 
 	// decrypt
-	if ((dec_code = source_decrypt_openssl(pl_buffer.data_enc, pl_buffer.len_enc, pl_buffer.data_raw, &pl_buffer.len_raw)) != ERR_NOTHING)
-	{
-		return dec_code;
+	if ((ret = source_decrypt_openssl(pl_buffer.data_enc, pl_buffer.len_enc, pl_buffer.data_raw, &pl_buffer.len_raw)) != ERR_NOTHING) {
+		return ret;
 	}
 
 	// tag check
-	if (strstr((const char *)pl_buffer.data_raw, PL_TOOL_NAME) == NULL)
-	{
+	if (strstr((const char *)pl_buffer.data_raw, PL_TOOL_NAME) == NULL) {
 		return ERR_NOT_SOURCE_GUARD;
 	}
 
@@ -168,22 +142,19 @@ ZEND_API zend_op_array *(*org_compile_file)(zend_file_handle *file_handle, int t
 // my compiler
 ZEND_API zend_op_array *source_guard_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
-
 	// init
 	source_init();
 
 	// check open
 	pl_buffer.fp_r = fopen(file_handle->filename, "r");
-	if (!pl_buffer.fp_r)
-	{
+	if (!pl_buffer.fp_r) {
 		// init
 		source_init();
 		return org_compile_file(file_handle, type);
 	}
 
 	// decrypt execute
-	if (source_decrypt() != ERR_NOTHING)
-	{
+	if (source_decrypt() != ERR_NOTHING) {
 		// init
 		source_init();
 		return org_compile_file(file_handle, type);
