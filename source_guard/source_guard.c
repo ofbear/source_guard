@@ -78,7 +78,6 @@ void source_free()
 int source_decrypt_openssl(const unsigned char *data_enc, const int len_enc, char *data_raw, int *len_raw)
 {
 	EVP_CIPHER_CTX *ctx;
-	int len_pad = 0;
 	int len_raw_0 = 0;
 	int len_raw_1 = 0;
 
@@ -111,6 +110,7 @@ int source_decrypt_openssl(const unsigned char *data_enc, const int len_enc, cha
 		EVP_CIPHER_CTX_free(ctx);
 		return ERR_FAIL_EVP_UPDATE;
 	}
+
 	*len_raw = len_raw_0 + len_raw_1;
 	memset(data_raw + *len_raw, 0x00, len_enc - *len_raw);
 
@@ -122,7 +122,6 @@ int source_decrypt_openssl(const unsigned char *data_enc, const int len_enc, cha
 int source_decrypt()
 {
 	struct stat stat_buf;
-	unsigned char resultfile[128];
 	int dec_code = ERR_NOTHING;
 
 	// get file data
